@@ -1,0 +1,47 @@
+import requests
+from bs4 import BeautifulSoup
+import json
+
+# Функция для парсинга страницы с вакансиями
+def parse_vacancies(url):
+    response = requests.get(url)
+    vacancies = []
+    if response.status_code == 200:
+        soup = BeautifulSoup(response.content, 'html.parser')
+        items = soup.find_all('div', class_='vacancy-serp-item')
+        for item in items:
+            title = item.find('a', class_='bloko-link HH-LinkModifier').text
+            link = item.find('a', class_='bloko-link HH-LinkModifier')['href']
+            company = item.find('a', class_='bloko-link bloko-link_secondary').text
+            salary = item.find('div', class_='vacancy-serp-item__compensation')
+            if salary:
+                salary = salary.text
+            else:
+                salary = 'З/П не указана'
+            if 'Django' in title or 'Flask' in title:
+                city = "Москва" if "area=1" in url else "Санкт-Петербург"
+                vacancy_info = {
+                    'title': title,
+                    'link': link,
+                    'company': company,
+                    'city': city,
+                    'salary': salary
+                }
+                vacancies.append(vacancy_info)
+    return vacancies
+
+# Функция для записи информации о вакансиях в JSON
+def write_to_json(data, filename):
+    with open(filename, 'w', encoding='utf-8') as file:
+        json.dump(data, file, ensure_ascii=False, indent=4)
+
+# Задаем URL для парсинга вакансий
+url_moscow = 'https://spb.hh.ru/search/vacancy?text=python&area=1'
+url_spb = 'https://spb.hh.ru/search/vacancy?text=python&area=2'
+
+# Получаем список вакансий и записываем их в JSON
+vacancies_moscow = parse_vacancies(url_moscow)
+vacancies_spb = parse_vacancies(url_spb)
+
+all_vacancies = vacancies_moscow + vacancies_spb
+write_to_json(all_vacancies, 'vacancies.json')
